@@ -1,0 +1,3 @@
+# Which countries should be blocked?
+# Use the two letter designation separated by a space.
+countries=""

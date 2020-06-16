@@ -1,0 +1,7 @@
+[Unit]
+Description=Oneshot service to update country blacklists
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/firewalld-blacklist

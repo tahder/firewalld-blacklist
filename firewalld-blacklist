@@ -1,0 +1,52 @@
+#!/bin/bash
+# Based on the below article
+# https://www.linode.com/community/questions/11143/top-tip-firewalld-and-ipset-country-blacklist
+
+# Source the blacklisted countries from the configuration file
+. /etc/blacklist-by-country
+
+# Create a temporary working directory
+ipdeny_tmp_dir=$(mktemp -d -t blacklist-XXXXXXXXXX)
+pushd $ipdeny_tmp_dir
+
+# Download the latest network adresses by country file
+curl -LO http://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz
+tar xf all-zones.tar.gz
+
+# For updates, remove the ipset blacklist and recreate
+if firewall-cmd -q --zone=drop --query-source=ipset:blacklist; then
+    firewall-cmd -q --permanent --delete-ipset=blacklist
+fi
+
+# Create the ipset blacklist which accepts both IP addresses and networks
+firewall-cmd -q --permanent --new-ipset=blacklist --type=hash:net \
+    --option=family=inet --option=hashsize=4096 --option=maxelem=200000 \
+    --set-description="An ipset list of networks or ips to be dropped."
+
+# Add the address ranges by country per ipdeny.com to the blacklist
+for country in $countries; do
+    firewall-cmd -q --permanent --ipset=blacklist \
+        --add-entries-from-file=./$country.zone && \
+        echo "Added $country to blacklist ipset."
+done
+
+# Block individual IPs if the configuration file exists and is not empty
+if [ -s "/etc/blacklist-by-ip" ]; then
+    echo "Adding IPs blacklists."
+    firewall-cmd -q --permanent --ipset=blacklist \
+        --add-entries-from-file=/etc/blacklist-by-ip && \
+        echo "Added IPs to blacklist ipset."
+fi    
+
+# Add the blacklist ipset to the drop zone if not already setup
+if firewall-cmd -q --zone=drop --query-source=ipset:blacklist; then
+    echo "Blacklist already in firewalld drop zone."
+else
+    echo "Adding ipset blacklist to firewalld drop zone."
+    firewall-cmd --permanent --zone=drop --add-source=ipset:blacklist
+fi
+
+firewall-cmd -q --reload
+
+popd
+rm -rf $ipdeny_tmp_dir

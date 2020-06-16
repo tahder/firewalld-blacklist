@@ -1,0 +1,17 @@
+[Unit]
+Description=Timer for Country Blacklist Updates
+After=firewalld.service
+Requires=firewalld.service
+
+[Timer]
+# See http://www.freedesktop.org/software/systemd/man/systemd.time.html for
+# methods of specifying the frequency, some examples below are:
+#         daily → *-*-* 00:00:00
+#       monthly → *-*-01 00:00:00
+#        weekly → Mon *-*-* 00:00:00
+# By default, run about midnight:
+OnCalendar=monthly
+Persistent=yes
+
+[Install]
+WantedBy=timers.target
